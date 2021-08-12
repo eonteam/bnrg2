@@ -21,8 +21,8 @@
 // ===============================================================
 
 #define MAX_LOCAL_NAME_AD_LEN ((uint8_t) 21) // 20 for name and 1 byte for ad type
-#define DISCOVERABLE_MODE_STARTED ((uint8_t)(0x00))
-#define DISCOVERABLE_MODE_STOPPED ((uint8_t)(0x01))
+#define DISCOVERABLE_MODE_STARTED ((uint8_t) (0x00))
+#define DISCOVERABLE_MODE_STOPPED ((uint8_t) (0x01))
 
 static struct {
   ble_error_t error;
@@ -54,20 +54,29 @@ static struct {
 __STATIC_INLINE void setError(ble_error_t error) { ble_state.error = error; }
 
 static tBleStatus setup_public_address(const uint8_t *addr) {
-  uint8_t bdaddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-  for (uint8_t i = 0; i < 6; i++) {
-    bdaddr[i] = addr[5 - i];
-  }
-  // // get a random number from BlueNRG
-  // ret = hci_le_rand(random_number);
-  // if (ret != BLE_STATUS_SUCCESS) {
-  //   xfprintf(uart2_write, "hci_le_rand() call failed: 0x%x\r\n", ret);
-  // }
+  uint8_t bdaddr[6];
 
-  // // Setup last 3 bytes of public address with random number
-  // bdaddr[0] = (uint8_t)(random_number[0]);
-  // bdaddr[1] = (uint8_t)(random_number[3]);
-  // bdaddr[2] = (uint8_t)(random_number[6]);
+  if (addr == NULL) {
+    // get a random number from BlueNRG
+    uint8_t random_number[8];
+    tBleStatus ret = hci_le_rand(random_number);
+    if (ret != BLE_STATUS_SUCCESS) {
+      DEBUG_PRINTF("Error while resetting: 0x%x\n", ret);
+      return ret;
+    }
+    // setup last 3 bytes of public address with random number
+    bdaddr[0] = (uint8_t) (random_number[0]);
+    bdaddr[1] = (uint8_t) (random_number[3]);
+    bdaddr[2] = (uint8_t) (random_number[6]);
+    bdaddr[3] = 0xE1;
+    bdaddr[4] = 0x80;
+    bdaddr[5] = 0x02;
+  } else {
+    for (uint8_t i = 0; i < 6; i++) {
+      bdaddr[i] = addr[5 - i];
+    }
+  }
+
   return aci_hal_write_config_data(CONFIG_DATA_PUBADDR_OFFSET, CONFIG_DATA_PUBADDR_LEN, bdaddr);
 }
 
@@ -95,7 +104,7 @@ static bool _uuidStringToObjType(UUID_t *uuid, uint8_t *uuidType, const char *uu
   if (uuidLen == 4) { // 16 bits UUID
     const uint8_t upper = (_hexDigitToDec(uuidString[0]) << 4) | (_hexDigitToDec(uuidString[1]));
     const uint8_t lower = (_hexDigitToDec(uuidString[2]) << 4) | (_hexDigitToDec(uuidString[3]));
-    uuid->UUID_16 = (uint16_t)(upper << 8) | (uint16_t)(lower);
+    uuid->UUID_16 = (uint16_t) (upper << 8) | (uint16_t) (lower);
     *uuidType = UUID_TYPE_16;
     return true;
   }
@@ -113,8 +122,8 @@ ble_error_t bnrg2_getError(void) { return ble_state.error; }
 // Functions
 // ===============================================================
 
-// Initialize BlueNRG-2 hardware.
-//
+// Initialize BlueNRG-2 hardware. Passing a null public address, will
+// generate a real random public address.
 bool bnrg2_init(const bnrg2_hw_t *hw, const uint8_t *pubaddr) {
   uint8_t ret;
   setError(BLE_ERROR_NONE);

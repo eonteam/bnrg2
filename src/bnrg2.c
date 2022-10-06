@@ -400,6 +400,7 @@ void hci_disconnection_complete_event(uint8_t Status,
   ble_state.conn_handle = 0;
   ble_state.mtu_exchanged = 0;
   ble_state.mtu_exchanged_wait = 0;
+  ble_state.is_tx_buffer_full = false;
   __bnrg_on_disconnect(Connection_Handle);
   DEBUG_PRINTF("Disconnection with reason: 0x%x\r\n", Reason);
 }
@@ -417,6 +418,13 @@ void aci_att_exchange_mtu_resp_event(uint16_t Connection_Handle,
     if (ble_state.mtu_exchanged_wait == 0) { ble_state.mtu_exchanged_wait = 2; }
     ble_state.mtu_exchanged = 1;
   }
+}
+
+// This event is generated when a GATT TX pool available event is triggered.
+//
+void aci_gatt_tx_pool_available_event(uint16_t Connection_Handle,
+                                      uint16_t Available_Buffers) {
+  ble_state.is_tx_buffer_full = false;
 }
 
 // ===============================================================
